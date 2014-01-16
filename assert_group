@@ -1,0 +1,79 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+import grp
+
+DOCUMENTATION = '''
+---
+module: assert_group
+version_added: 1.5
+short_description: Assert file and directory group owner
+description:
+  - Check group of a given file or directory
+options: 
+  name: 
+    description:
+    - path to the file or directory to check its permissions
+    required: True
+    default: null
+  should_be: 
+    description: 
+    - expected group of the file/directory
+    required: False
+    default: null
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Assert if testfile is owned by the group users
+assert_group: name=/tmp/testfile should_be=users
+'''
+
+def file_group(filename):
+    filename = os.path.expanduser(filename)
+    st = os.lstat(filename)
+    group = grp.getgrgid(st.st_gid).gr_name
+
+    return group
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            name=dict(required=True, default=None),
+            should_be=dict(required=True),
+        ),
+        supports_check_mode=True
+    )
+    group = module.params.get('should_be')
+    path = os.path.expanduser(module.params['name'])
+
+    if not os.path.lexists(path):
+        module.fail_json(msg="%s does not exist" % path)
+
+    actual_group = file_group(path)
+
+    if group and actual_group != group:
+        module.fail_json(msg="%s owned by group %s, should be owned by group %s" % (path, actual_group, group))
+    
+    module.exit_json()
+    
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

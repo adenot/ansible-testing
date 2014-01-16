@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # (c) 2014, Will Thames <will@thames.id.au>
+# (c) 2014, Allan Denot <adenot@gmail.com>
 #
 # This file is part of Ansible
 #
@@ -18,10 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
+import pprint
 
 DOCUMENTATION = '''
 ---
-module: test_process
+module: assert_process
 version_added: 1.5
 short_description: Check the status of a process
 description:
@@ -32,69 +34,79 @@ options:
     - name of the process to check
     required: True
     default: null
-  args:
+  with_args:
     description:
     - list of one or more arguments to look for
     required: False
     default: []
-  state: 
+  should_be: 
     description: 
     - state of the process
-    choices: [ 'present', 'absent' ]
-    default: present
+    choices: [ 'running', 'stopped' ]
+    required: True
 author: Will Thames
 '''
 
 EXAMPLES = '''
-# Check if python app is running
-test_process: name=python state=present args=['app.py']
+# Check if http app is running
+assert_process: name=httpd should_be=running with_args='/apps/apache2/conf/httpd.conf'
 '''
 
-def check_process_for_arg(process, arg): 
-    return arg in ' '.join(process.split()[1:])
-
-
-def check_process(process, name, args):
-    if not re.match(r'([^ ]*/)?%s\b' % name, process):
-        return False 
-    if not args:
+def check_process(process, name):
+    if not len(process.strip().split()):
+        return False
+        
+    if process.strip().split()[0] == name:
         return True
-    for arg in args: 
-        if not check_process_for_arg(process, arg):
-            return False
-    return True
+    return False
 
+def check_arguments(process,name,args):
+    if not len(process.strip().split()):
+        return False
 
+    arg_found = 0
+    for arg in args:
+        if arg in ' '.join(process.split()[1:]):
+            arg_found += 1
+    if arg_found == len(args): 
+        return True
+    return False
+    
 def main():
     module = AnsibleModule(
         argument_spec = dict(
             name=dict(required=True, default=None),
-            args=dict(type='list', required=False, default=[]),
-            state=dict(choices=['present', 'absent'], default='present'),
+            with_args=dict(type='list', required=False, default=[]),
+            should_be=dict(choices=['running', 'stopped'],required=True),
         ),
         supports_check_mode=True
     )
     name = module.params.get('name')
-    args = module.params.get('args')
-    state = module.params.get('state')
-
+    args = module.params.get('with_args')
+    state = module.params.get('should_be')
+    
     # Would like this to be more cross platform
     rc, stdout, stderr = module.run_command(['ps', 'axww', '-o', 'command'])
     processes = stdout.split('\n')[1:]
     
-    process_running = filter(lambda x: check_process(x, name, args), processes)
-    if state == 'present':
+    process_running = filter(lambda x: check_process(x, name), processes)
+    process_args = filter(lambda x: check_arguments(x, name, args), processes)
+    if state == 'running':
+        if not process_running:
+            module.fail_json(msg="%s is not running" % name)
+    
+        if args and not process_args:
+            module.fail_json(msg="%s is running but does not have all the arguments required: %s" % (name, args))
+    
         if process_running:
             module.exit_json()
-        else:
-            module.fail_json(msg="Process with name %s not found with arguments %s" % (name,args))
-    if state == 'absent':
+
+    if state == 'stopped':
         if process_running:
-            module.fail_json(msg="Process with name %s was unexpectedly found" % name)
+            module.fail_json(msg="%s is running, it should be stopped" % name)
         else:
             module.exit_json()
 
-from ansible.module_utils.basic import *
-
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
 main()
-

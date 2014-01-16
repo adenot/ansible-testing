@@ -1,0 +1,109 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+
+DOCUMENTATION = '''
+---
+module: assert_file
+version_added: 1.5
+short_description: Assert the state of a file or directory
+description:
+  - Check state of a file or directory
+options: 
+  name: 
+    description:
+    - path to the file or directory to check its state
+    required: True
+    default: null
+  state:
+    description:
+    - Check for the state of the resource. Options are: C(directory), C(file), C(absent), C(hard), C(link)
+    required: true
+    choices: [ file, directory, absent, hard, link ]
+  src:
+    required: false
+    default: null
+    choices: []
+    description:
+      - path of the file to link to (applies only to C(state=link)). Will accept absolute,
+        relative and nonexisting paths. Relative paths are not expanded.
+
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Check if file exists and is not a directory or link
+assert_file: name=/tmp/testlink should_be=file
+'''
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            name=dict(required=True, default=None),
+            to=dict(required=False),
+            should_be=dict(choices=['file','directory','absent','hard','link'], required=True),
+        ),
+        supports_check_mode=True
+    )
+    state = module.params.get('should_be')
+    src = module.params.get('to')
+
+    path = os.path.expanduser(module.params['name'])
+
+    if not os.path.isabs(path):
+        module.fail_json(msg="'%s' must be an absolute path" % path)
+
+    if src and not os.path.isabs(src):
+        module.fail_json(msg="Link source '%s' must be an absolute path" % src)
+        
+    if os.path.lexists(path):
+        if os.path.islink(path):
+            actual_state = 'link'
+        elif os.path.isdir(path):
+            actual_state = 'directory'
+        elif os.stat(path).st_nlink > 1:
+            actual_state = 'hard'
+        else:
+            # could be many other things, but defaulting to file
+            actual_state = 'file'
+    else:
+        if state == 'absent':
+            module.exit_json()
+        else:
+            module.fail_json(msg="%s does not exist, it should exist with state '%s'" % (path,state))
+
+    if state != actual_state:
+        module.fail_json(msg="%s is %s, it should be %s" % (path,actual_state,state))
+
+    if state in ['link','hard']:
+        actual_src = os.path.join(os.path.dirname(path), os.path.basename(os.readlink(path)))
+        if not os.path.exists(actual_src):
+            module.fail_json(msg='%s links to %s, but it does not exist' % (path,actual_src))
+
+        if state == 'link':
+            if actual_src != src:
+                module.fail_json(msg='%s links to %s, it should link to %s' % (path,actual_src,src))
+
+    module.exit_json()
+    
+
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

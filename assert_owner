@@ -1,0 +1,77 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+DOCUMENTATION = '''
+---
+module: assert_owner
+version_added: 1.5
+short_description: Assert file and directory user owner
+description:
+  - Check user owner of a given file or directory
+options: 
+  name: 
+    description:
+    - path to the file or directory to check its permissions
+    required: True
+    default: null
+  should_be: 
+    description: 
+    - expected owner of the file/directory
+    required: False
+    default: null
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Assert if testfile is owned by user adenot
+assert_owner: name=/tmp/testfile should_be=adenot 
+'''
+
+def file_owner(filename):
+    filename = os.path.expanduser(filename)
+    st = os.lstat(filename)
+    user = pwd.getpwuid(st.st_uid).pw_name
+
+    return user
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            name=dict(required=True, default=None),
+            should_be=dict(required=True),
+        ),
+        supports_check_mode=True
+    )
+    owner = module.params.get('should_be')
+    path = os.path.expanduser(module.params['name'])
+
+    if not os.path.lexists(path):
+        module.fail_json(msg="%s does not exist" % path)
+
+    actual_owner = file_owner(path)
+
+    if owner and actual_owner != owner:
+        module.fail_json(msg="%s owned by %s, should be owned by %s" % (path, actual_owner, owner))
+    
+    module.exit_json()
+    
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

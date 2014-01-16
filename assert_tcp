@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # (c) 2014, Will Thames <will@thames.id.au>
+# (c) 2014, Allan Denot <adenot@gmail.com>
 #
 # This file is part of Ansible
 #
@@ -21,28 +22,23 @@
 
 DOCUMENTATION = '''
 ---
-module: test_tcp
+module: assert_tcp
 version_added: 1.5
 short_description: Check if a tcp connection can be made
 description:
   - Check if a TCP connection can be made to a host on a port
 options: 
-  host: 
+  name: 
     description:
-    - host to connect to
+    - host to connect to, including port
     required: True
     default: null
-  port:
-    description: 
-    - port to connect to
-    required: True
-    default: null
-  state: 
+  should_be: 
     description: 
     - state of the port
     choices: [ 'open', 'closed' ]
     default: open
-  timeout: 
+  with_timeout: 
     description:
     - time in seconds to wait for a response
     required: False
@@ -52,28 +48,26 @@ author: Will Thames
 
 EXAMPLES = '''
 # Check if port 80 is open on a server
-test_tcp: port=80 state=open timeout=10
+assert_tcp: name=localhost:80 should_be=open with_timeout=30
 '''
 import socket
 
 def main():
     module = AnsibleModule(
         argument_spec = dict(
-            host=dict(required=True, default=None),
-            port=dict(required=True, default=None),
-            state=dict(choices=['open', 'closed'], default='open'),
-            timeout=dict(required=False, default=5.0, type='float'),
+            name=dict(required=True, default=None),
+            should_be=dict(choices=['open', 'closed'], required=True),
+            with_timeout=dict(required=False, default=5, type='int'),
         ),
         supports_check_mode=True
     )
-    host = module.params.get('host')
-    port = module.params.get('port')
-    state = module.params.get('state')
-    timeout = module.params.get('timeout')
+    host = module.params.get('name').split(":")[0]
+    port = module.params.get('name').split(":")[1]
+    state = module.params.get('should_be')
+    timeout = module.params.get('with_timeout')
     
     s = None
-    for res in socket.getaddrinfo(module.params.get('host'), module.params.get('port'),
-                                  socket.AF_UNSPEC, socket.SOCK_STREAM):
+    for res in socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM):
         af, socktype, proto, canonname, sa = res
         try: 
             s = socket.socket(af, socktype, proto)
@@ -91,17 +85,16 @@ def main():
     
     if s is None:
         if state == 'open':
-            module.fail_json(msg='Could not connect to %s on port %s' % (host, port))
+            module.fail_json(msg='Port %s is closed on %s, it should be open' % (port, host))
         if state == 'closed':
             module.exit_json()
     else:
         if state == 'open':
             module.exit_json()
         if state == 'closed':
-            module.fail_json(msg='Connection to %s on port %s should not have succeeded' % (host, port))
+            module.fail_json(msg='Port %s is open on %s, it should be closed' % (port,host))
         s.close()
 
-from ansible.module_utils.basic import *
-
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
 main()
-

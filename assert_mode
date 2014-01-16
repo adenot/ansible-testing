@@ -1,0 +1,81 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+
+DOCUMENTATION = '''
+---
+module: assert_mode
+version_added: 1.5
+short_description: Assert file and directory mode
+description:
+  - Check mode permissions for a given file or directory
+options: 
+  name: 
+    description:
+    - path to the file or directory to check its permissions
+    required: True
+    default: null
+  should_be:
+    description:
+    - expected mode of the file/directory
+    required: False
+    default: null
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Assert if testfile has mode 0755
+assert_mode: name=/tmp/testfile should_be=0755 
+'''
+
+def file_mode(filename):
+    filename = os.path.expanduser(filename)
+    st = os.lstat(filename)
+    mode = oct(st.st_mode & 0777)
+
+    return mode
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            name=dict(required=True, default=None),
+            should_be=dict(required=True)
+        ),
+        supports_check_mode=True
+    )
+
+    mode = module.params.get('should_be')
+    path = os.path.expanduser(module.params['name'])
+
+    if not os.path.lexists(path):
+        module.fail_json(msg="%s does not exist" % path)
+
+    actual_mode = file_mode(path)
+
+    if mode and actual_mode != mode:
+        module.fail_json(msg="%s has mode %s, should have mode %s" % (path, actual_mode, mode))
+    
+    module.exit_json()
+
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()
+
+

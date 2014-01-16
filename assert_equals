@@ -1,0 +1,66 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+
+DOCUMENTATION = '''
+---
+module: assert_equals
+version_added: 1.5
+short_description: Compares two values
+description:
+  - Compares two values
+options: 
+  value: 
+    description:
+    - Value to compare
+    required: True
+    default: null
+  should_be: 
+    description: 
+    - Value expected to have
+    required: True
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Assert if testfile matches the regular expression provided
+assert_content: name=/tmp/testfile should_match="example.*string"
+'''
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            value=dict(required=True, default=None),
+            should_be=dict(required=True),
+        ),
+        supports_check_mode=True
+    )
+    value = module.params.get('value')
+    expected = module.params.get('should_be')
+
+    if value == expected:
+        module.exit_json()
+    
+    module.fail_json(msg="Value is '%s', it should be '%s'" % (value, expected))
+    
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

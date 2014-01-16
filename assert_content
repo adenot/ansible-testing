@@ -1,0 +1,72 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+
+DOCUMENTATION = '''
+---
+module: assert_content
+version_added: 1.5
+short_description: Check if a file contains certain content
+description:
+  - Check if a file contains certain content
+options: 
+  name: 
+    description:
+    - host to connect to, including port
+    required: True
+    default: null
+  should_match: 
+    description: 
+    - content to match on the file, regex can be used
+  required: True
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Assert if testfile matches the regular expression provided
+assert_content: name=/tmp/testfile should_match="example.*string"
+'''
+
+import re
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            name=dict(required=True, default=None),
+            should_match=dict(required=True),
+        ),
+        supports_check_mode=True
+    )
+    file = module.params.get('name')
+    match = module.params.get('should_match')
+    
+    with open(file, 'r') as content_file:
+        content = content_file.read()
+    
+    res = re.search(match, content)
+
+    if res:
+        module.exit_json()
+    
+    module.fail_json(msg="Expression '%s' not found on file %s" % (match,file))
+    
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()

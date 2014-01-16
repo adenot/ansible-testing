@@ -1,0 +1,69 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2014, Allan Denot <adenot@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
+
+DOCUMENTATION = '''
+---
+module: assert_command
+version_added: 1.5
+short_description: Checks the output of a command
+description:
+  - Checks the output of a command
+options: 
+  name: 
+    description:
+    - Command to run
+    required: True
+    default: null
+  should_return: 
+    description: 
+    - Expected return code
+    required: True
+    default: 0
+author: Allan Denot
+'''
+
+EXAMPLES = '''
+# Assert if the command returns code 0
+assert_command: name='netstat -nl|grep ":9803"' should_return=0
+'''
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            name=dict(required=True, default=None),
+            should_return=dict(required=False, default=0),
+        ),
+        supports_check_mode=True
+    )
+    command = module.params.get('name')
+    expected = module.params.get('should_return')
+
+    rc, stdout, stderr = module.run_command(command)
+    
+    if int(rc) == int(expected):
+        module.exit_json(stdout=stdout, stderr=stderr)
+    
+    module.fail_json(msg="Command return code was %s, it should be %s" % (rc, expected), stdout=stdout, stderr=stderr)
+    
+# this is magic, see lib/ansible/module_common.py
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+main()
