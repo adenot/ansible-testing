@@ -25,43 +25,44 @@ git submodule add http://github.com/willthames/ansible-testing library/testing
 
 # Implemented
 ```
-name: python is running app.py
-test_process:
-  state: present
-  name: python
-  args: 
-  - app.py
+---
+ - name: Tests assert_* modules
+   hosts: all
+   gather_facts: false
+   vars:
+       testvar: 2
+   tasks:
+     - name: 'test file mode 0755'
+       assert_mode: name=/tmp/testfile should_be=0755 
 
-name: port 80 appears open from playbook machine
-local_action: test_tcp state=open port=80
+     - name: 'test file owner'
+       assert_owner: name=/tmp/testfile should_be=adenot
+       
+     - name: 'test file group'
+       assert_group: name=/tmp/testfile should_be=users
 
-name: number of cpus is 2
-action: assert condition="{{ansible_processor_count}} == 2" failure_msg="Expecting 2 CPUs, found {{ansible_processor_count}}"
+     - name: 'test file exists'
+       assert_file: name=/tmp/testfile should_be=file
+       
+     - name: 'test link exists'
+       assert_file: name=/tmp/testlink should_be=link to=/tmp/testfile
+       
+     - name: 'test directory exists'
+       assert_file: name=/tmp/testdir should_be=directory
+       
+     - name: 'test process running httpd'
+       assert_process: name=/sbin/agetty should_be=running with_args='38400'
+       
+     - name: 'test open port 80'
+       assert_tcp: name=localhost:9001 should_be=open with_timeout=3
+       
+     - name: 'test file content'
+       assert_content: name=/tmp/testfile should_match="example.*string"
+          
+     - name: 'test variables'
+       assert_equals: value={{testvar}} should_be=1
 
-name: /usr/local/etc/example exists
-action: test_file state=file path=/usr/local/etc/example mode=0755 owner=testuser group=testgroup
-
-name: capture results of /usr/local/bin/run_stuff
-action: command /usr/local/bin/run_stuff
-register: run_stuff_results
-
-name: run_stuff exited with status 0
-action: assert condition="{{run_stuff_results.rc}} == 0" failure_msg="run_stuff did not exit with status 0"
-
-# Note that the expansion of run_stuff_results.stdout is quoted here
-name: run_stuff printed Hello
-action: assert condition="'Hello' in '{{run_stuff_results.stdout}}'" failure_msg="run_stuff did not print Hello"
-
-```
-
-# To be implemented
-```
-name: http is installed
-action: test_rpm state=present name=http
-
-name: connecting to http://example.com/healthcheck returns 'Healthy' and status 200
-local_action: test_http url=http://example.com/healthcheck status=200 message='.*Healthy.*'
-
-name: /usr/local/bin/bobbins outputs 'hello' and exits with status 0
-action: test_command name=/usr/local/bin/bobbins status=0 stdout='hello'
+       # For more generic testing (until it is part of the module)
+     - name: 'test command return code is zero'
+       assert_command: name='netstat -nl|grep ":9001"' should_return=0
 ```
