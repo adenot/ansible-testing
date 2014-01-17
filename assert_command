@@ -32,9 +32,9 @@ options:
     - Command to run
     required: True
     default: null
-  should_return: 
+  should_be: 
     description: 
-    - Expected return code
+    - Expected return code or the word successful
     required: True
     default: 0
 author: Allan Denot
@@ -42,7 +42,7 @@ author: Allan Denot
 
 EXAMPLES = '''
 # Assert if the command returns code 0
-assert_command: name='netstat -nl|grep ":9803"' should_return=0
+assert_command: name='netstat -nl|grep ":9803"' should_be=successful
 '''
 
 
@@ -50,12 +50,20 @@ def main():
     module = AnsibleModule(
         argument_spec = dict(
             name=dict(required=True, default=None),
-            should_return=dict(required=False, default=0),
+            should_be=dict(required=False, default=0),
         ),
         supports_check_mode=True
     )
     command = module.params.get('name')
-    expected = module.params.get('should_return')
+    expected_input = module.params.get('should_be')
+
+    try:
+       expected = int(expected_input)
+    except ValueError:
+       if expected_input == 'successful':
+           expected = 0
+       else:
+           expected = 1
 
     rc, stdout, stderr = module.run_command(command)
     
