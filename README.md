@@ -64,5 +64,5 @@ git submodule add http://github.com/willthames/ansible-testing library/testing
 
        # For more generic testing (until it is part of the module)
      - name: 'test command return code is zero'
-       assert_command: name='netstat -nl|grep ":9001"' should_return=0
+       assert_command: name='netstat -nl|grep ":9001"' should_be=successful
 ```
