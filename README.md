@@ -11,7 +11,7 @@ if the concept proves itself
 
 ```
 cd ~/src/ansible
-git submodule add http://github.com/willthames/ansible-testing library/testing
+git submodule add http://github.com/adenot/ansible-testing library/testing
 ```
 
 ## Usage
@@ -23,7 +23,7 @@ git submodule add http://github.com/willthames/ansible-testing library/testing
   - webserver
 ```
 
-# Implemented
+# Implementation
 ```
 ---
  - name: Tests assert_* modules
